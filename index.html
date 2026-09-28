@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calculus I Learning Map</title>
+<style>
+  :root{
+    --navy:#0C2340; --gold:#AE9142; --gold-dark:#7a6326;
+    --ink:#1b2430; --muted:#4f5b6a; --line:#b9c0ca; --bg:#ffffff; --panel:#f5f6f8;
+    --active:#1a62c4; --active-bg:#e9f1fd;
+    --done:#1c7340; --done-bg:#edf7f1;
+    --up:#5a6573; --up-bg:#f3f4f6; --up-line:#c9ced6;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Helvetica Neue",Helvetica,Arial,"Liberation Sans",sans-serif;line-height:1.45}
+  button{font:inherit}
+  .wrap{max-width:1240px;margin:0 auto;padding:16px}
+  header.top{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between;margin-bottom:8px}
+  header.top h1{margin:0;font-size:1.45rem;color:var(--navy)}
+  header.top p{margin:2px 0 0;color:var(--muted);font-size:.95rem}
+  .view-toggle{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .view-toggle button{border:0;background:#fff;padding:6px 14px;cursor:pointer;color:var(--navy)}
+  .view-toggle button[aria-pressed="true"]{background:var(--navy);color:#fff}
+  :focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+  /* ---------- Map view ---------- */
+  .map-outer{position:relative;width:100%}
+  .map{position:absolute;top:0;left:0;width:1200px;height:910px;transform-origin:0 0}
+  .map svg{position:absolute;inset:0;width:1200px;height:910px;overflow:visible}
+  .edge{stroke:var(--line);stroke-width:2.5;fill:none}
+  .edge.lit{stroke:var(--navy)}
+  .node{position:absolute;width:230px;height:120px;border-radius:var(--radius);border:2.5px solid var(--up-line);
+    background:var(--up-bg);color:var(--up);padding:10px 14px;text-align:left;cursor:pointer;
+    display:flex;flex-direction:column;gap:2px;transition:transform .15s, box-shadow .15s}
+  .node:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(12,35,64,.15)}
+  .node .row{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:14px}
+  .node .parent{font-size:14px;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+  .node .title{font-size:25px;font-weight:700;line-height:1.1}
+  .node .codes{font-size:15px;margin-top:auto}
+  .node .ptag{font-size:14px;font-weight:600;line-height:1.1;margin-top:2px}
+  .node .title.long{font-size:21px}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:13px;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
+  .node.done{background:var(--done-bg);border-color:var(--done);color:var(--ink)}
+  .node.done .badge{background:var(--done);color:#fff}
+  .node.upcoming .badge{background:#e2e5e9;color:var(--up)}
+  .node.partial{background:#f4f8f5;border-color:#7fae92;border-style:dashed;color:var(--ink)}
+  .node.partial .badge{background:#dcebe1;color:#1c5a34}
+  .node.active{background:var(--active-bg);border-color:var(--active);color:var(--ink);border-width:3.5px;
+    animation:pulse 2s ease-in-out infinite}
+  .node.active .badge{background:var(--active);color:#fff}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(26,98,196,.55)}
+    50%{box-shadow:0 0 0 14px rgba(26,98,196,0)}
+  }
+  .tip{position:absolute;background:var(--navy);color:#fff;font-size:15px;font-weight:600;padding:7px 12px;border-radius:8px;
+    white-space:nowrap;pointer-events:none}
+  .tip{transform:translateX(-50%)}
+  .tip::after{content:"";position:absolute;left:50%;top:-7px;margin-left:-7px;border:7px solid transparent;border-top:0;border-bottom-color:var(--navy)}
+
+  /* ---------- List view ---------- */
+  .list{display:none;list-style:none;margin:0;padding:0}
+  .list li{margin:0 0 8px}
+  .list .node{position:static;width:100%;height:auto;min-height:0;animation:none}
+  .list .node.partial{border-style:dashed}
+  .list .node.active{box-shadow:0 0 0 3px rgba(26,98,196,.25)}
+  .list .node .title{font-size:1.15rem}
+  .list .node .codes{font-size:.9rem;margin-top:4px}
+  .list .node .parent{font-size:.75rem}
+  .list .node .ptag{font-size:.8rem}
+  .list .node .title.long{font-size:1.15rem}
+  .list .node .row{font-size:.85rem}
+  body.list-mode .map-outer{display:none}
+  body.list-mode .list{display:block}
+
+  /* ---------- Hub ---------- */
+  .hub{display:grid;grid-template-columns:1fr;gap:16px;margin-top:18px}
+  .card{background:var(--panel);border-radius:var(--radius);padding:14px 16px}
+  .card h2{margin:0 0 8px;font-size:1.05rem;color:var(--navy)}
+  .timeline{position:relative;margin:44px 0 4px;height:74px}
+  .tl-inner{position:absolute;left:12px;right:12px;top:0;bottom:0}
+  .track{position:absolute;top:22px;left:0;right:0;height:8px;border-radius:4px;background:#dfe3e8}
+  .fill{position:absolute;top:22px;left:0;height:8px;border-radius:4px;background:var(--navy)}
+  .tick{position:absolute;top:36px;transform:translateX(-50%);font-size:.72rem;color:var(--muted);white-space:nowrap}
+  .tick.break,.tick.finals{font-style:italic}
+  .tick.hol::after{content:"*";color:var(--gold-dark);font-weight:700}
+  .gap{position:absolute;top:18px;height:16px;border-radius:4px;background:repeating-linear-gradient(135deg,#e7e9ed 0 4px,#cfd4db 4px 8px)}
+  .band{position:absolute;top:56px;height:10px;border-radius:3px}
+  .pin{position:absolute;top:-34px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;pointer-events:none}
+  .pin .head{background:var(--active);color:#fff;font-size:.78rem;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap}
+  .pin.preview .head{background:var(--gold-dark)}
+  #weekSlider{position:absolute;left:-12px;right:-12px;width:calc(100% + 24px);top:12px;height:28px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;cursor:grab}
+  #weekSlider:active{cursor:grabbing}
+  #weekSlider::-webkit-slider-runnable-track{height:28px;background:transparent}
+  #weekSlider::-moz-range-track{height:28px;background:transparent}
+  #weekSlider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;margin-top:2px;border-radius:50%;background:var(--active);border:3px solid #fff;box-shadow:0 0 0 0 rgba(26,98,196,.6);animation:pin 1.8s ease-out infinite}
+  #weekSlider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--active);border:3px solid #fff;animation:pin 1.8s ease-out infinite}
+  #weekSlider:focus-visible{outline:none}
+  #weekSlider:focus-visible::-webkit-slider-thumb{outline:3px solid var(--gold);outline-offset:2px}
+  @keyframes pin{0%{box-shadow:0 0 0 0 rgba(26,98,196,.6)}100%{box-shadow:0 0 0 14px rgba(26,98,196,0)}}
+  .slider-hint{margin:6px 0 0;font-size:.82rem}
+  .previewtag{display:inline-block;background:var(--gold-dark);color:#fff;font-size:.72rem;font-weight:700;padding:1px 7px;border-radius:999px;vertical-align:1px}
+  .exam{position:absolute;top:0;transform:translateX(-50%);width:18px;height:18px;border-radius:4px;background:#8a1c1c;color:#fff;font-size:.66rem;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:1}
+  .examtag{display:inline-block;background:#8a1c1c;color:#fff;font-size:.75rem;font-weight:700;padding:0 7px;border-radius:999px}
+  .holtag{display:inline-block;border:1px solid var(--gold-dark);color:var(--gold-dark);font-size:.75rem;font-weight:700;padding:0 6px;border-radius:999px}
+  .bandkey{margin:4px 0 0;font-size:.78rem;color:var(--muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px}
+  .bandkey span{display:inline-block;width:14px;height:8px;border-radius:2px;margin-left:6px}
+  .lect{font-size:.85rem;color:var(--muted)}
+  .where{margin:10px 0 0;font-size:.95rem}
+  .checkins{font-size:.9rem;margin:0;padding-left:18px}
+  .muted{color:var(--muted)}
+  .btn{border:1px solid var(--navy);background:#fff;color:var(--navy);border-radius:8px;padding:6px 12px;cursor:pointer}
+  .btn.primary{background:var(--navy);color:#fff}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ---------- Dialog ---------- */
+  dialog{border:0;border-radius:16px;padding:0;width:min(720px,94vw);max-height:90vh;color:var(--ink)}
+  dialog::backdrop{background:rgba(12,35,64,.45)}
+  .dlg-head{position:sticky;top:0;background:#fff;border-bottom:1px solid #e3e6ea;padding:14px 18px;display:flex;gap:12px;justify-content:space-between;align-items:flex-start;z-index:1}
+  .dlg-head h2{margin:0;font-size:1.35rem;color:var(--navy)}
+  .dlg-head p{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+  .dlg-body{padding:6px 18px 18px}
+  .dlg-body h3{font-size:1rem;color:var(--navy);margin:18px 0 6px}
+  .dlg-body ul{margin:0;padding-left:20px}
+  .close{border:0;background:transparent;font-size:1.6rem;line-height:1;cursor:pointer;color:var(--navy);padding:2px 6px}
+  .rq{background:var(--panel);border-radius:10px;padding:10px 12px;margin:8px 0}
+  .rq p{margin:0 0 6px;font-weight:600}
+  .rq label{font-size:.82rem;color:var(--muted)}
+  .rq textarea{width:100%;min-height:52px;border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;resize:vertical}
+  .answer{margin-top:8px;background:#fff;border-left:4px solid var(--done);padding:8px 10px;border-radius:6px}
+  .scale{display:flex;gap:6px;flex-wrap:wrap;border:0;padding:0;margin:6px 0 0}
+  .scale legend{padding:0;margin-bottom:6px;font-weight:600}
+  .scale input{position:absolute;opacity:0;width:1px;height:1px}
+  .scale label{min-width:44px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;border:1.5px solid var(--line);border-radius:10px;cursor:pointer;padding:4px 8px;background:#fff;font-weight:700}
+  .scale label small{font-weight:400;font-size:.7rem;color:var(--muted)}
+  .scale input:checked + label{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .scale input:checked + label small{color:#dfe6f0}
+  .scale input:focus-visible + label{outline:3px solid var(--gold);outline-offset:2px}
+  .feedback{margin-top:8px;font-size:.92rem}
+  .links{display:flex;flex-wrap:wrap;gap:8px}
+  .links a,.links span{display:inline-block;padding:7px 12px;border-radius:8px;border:1.5px solid var(--navy);color:var(--navy);text-decoration:none;font-weight:600;font-size:.9rem}
+  .links a:hover{background:var(--navy);color:#fff}
+  .links span{border-style:dashed;border-color:var(--line);color:var(--muted);font-weight:400}
+  .locked-note{background:var(--up-bg);border-radius:10px;padding:10px 12px;margin-top:12px}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  @media (prefers-reduced-motion:reduce){ .node.active{animation:none} #weekSlider::-webkit-slider-thumb,#weekSlider::-moz-range-thumb{animation:none} .node{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1 id="mapTitle">Calculus I Learning Map</h1>
+      <p id="subTitle">Select any unit to see its sections, practice questions, and links.</p>
+    </div>
+    <div class="view-toggle" role="group" aria-label="Choose view">
+      <button type="button" id="btnMap" aria-pressed="true">Map view</button>
+      <button type="button" id="btnList" aria-pressed="false">List view</button>
+    </div>
+  </header>
+
+  <div class="map-outer" id="mapOuter">
+    <div class="map" id="map" role="group" aria-label="Course map. Units connect from Functions to Limits, then branch into Derivatives and Integrals, which meet again at Differential Equations.">
+      <svg id="edges" aria-hidden="true" focusable="false"></svg>
+    </div>
+  </div>
+  <ol class="list" id="list" aria-label="Units in course order"></ol>
+
+  <section class="hub" aria-label="Progress and reflection">
+    <div class="card">
+      <h2>Where are we?</h2>
+      <p class="slider-hint muted">Drag the pin (or use the arrow keys) to preview another week.</p>
+      <div class="timeline" id="timeline"></div>
+      <p class="bandkey" aria-hidden="true"><span style="background:#8b95a3"></span>Foundations <span style="background:#0C2340"></span>Derivatives <span style="background:#AE9142"></span>Integrals <span style="background:#1c7340"></span>Differential Eq. &nbsp;· <em>Break</em> = no classes &nbsp;· * = holiday week &nbsp;· <b style="color:#8a1c1c">M</b>/<b style="color:#8a1c1c">F</b> = midterm / final</p>
+      <p class="where" id="where" aria-live="polite"></p>
+      <p style="margin:8px 0 0"><button class="btn" id="backBtn" type="button" hidden>Back to this week</button></p>
+    </div>
+    <div class="card">
+      <h2>My check-ins</h2>
+      <p class="muted" style="margin:0 0 8px;font-size:.88rem">Confidence ratings you give in a unit show up here. They are not saved or sent anywhere; copy them into your reflection journal if you want to keep them.</p>
+      <ul class="checkins" id="checkins"><li class="muted">No ratings yet.</li></ul>
+      <p style="margin:10px 0 0"><button class="btn" id="copyBtn" type="button" disabled>Copy my check-ins</button> <span id="copyMsg" role="status" class="muted"></span></p>
+    </div>
+  </section>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle">
+  <div class="dlg-head">
+    <div>
+      <h2 id="dlgTitle"></h2>
+      <p id="dlgMeta"></p>
+    </div>
+    <button class="close" type="button" id="dlgClose" aria-label="Close">×</button>
+  </div>
+  <div class="dlg-body" id="dlgBody"></div>
+</dialog>
+
+<script src="course-data.js"></script>
+<script>
+(function(){
+  const C = window.COURSE, T = C.TERM;
+  const W = 1200, H = 910, NW = 230, NH = 120, DAY = 864e5;
+  const byId = Object.fromEntries(C.units.map(u => [u.id, u]));
+  const ratings = {};   // in-memory only
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const D = s => new Date(s + "T00:00:00");
+  const fmt = d => d.toLocaleDateString("en-US", {month:"short", day:"numeric"});
+  const range = (a, b) => +a === +b ? fmt(a) : fmt(a) + "–" + fmt(b);
+  const addDays = (d, k) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + k);   // DST-safe
+
+  /* ---------- Term calendar: one slot per week, plus break and finals slots ---------- */
+  const start = D(T.start), last = D(T.lastClass);
+  const breaks = (T.breaks || []).map(b => ({...b, s: D(b.start), e: D(b.end)}));
+  const holidays = (T.holidays || []).map(h => ({...h, s: D(h.start), e: D(h.end)}));
+  const slots = [];
+  let n = 0;
+  for (let mon = new Date(start); mon <= last; mon = addDays(mon, 7)) {
+    const sun = addDays(mon, 6), fri = addDays(mon, 4);
+    const br = breaks.find(b => b.s <= mon && b.e >= fri);          // no weekday classes
+    if (br) { slots.push({kind:"break", label:br.label, short:"Break", s:mon, e:sun}); continue; }
+    n++;
+    const hol = holidays.find(h => h.s <= sun && h.e >= mon);
+    slots.push({kind:"week", week:n, short:String(n), s:mon, e:sun, holiday: hol ? hol.label : ""});
+  }
+  const N = n;                                                        // instructional weeks
+  if (T.finals) slots.push({kind:"finals", label:T.finals.label, short:"Finals", s:D(T.finals.start), e:D(T.finals.end)});
+  // Attach exams to the slot that holds their date (finals slot wins for finals-week dates)
+  (T.exams || []).forEach(x => {
+    const dt = D(x.date), fin = slots.find(s => s.kind === "finals");
+    const s = (fin && dt >= fin.s && dt <= fin.e) ? fin : slots.find(s => dt >= s.s && dt <= s.e);
+    if (s) (s.exams = s.exams || []).push({...x, d: dt});
+  });
+  const examText = x => `${x.label}: ${x.d.toLocaleDateString("en-US", {weekday:"short", month:"short", day:"numeric"})}, ${x.time}`;
+  // Lecture dates -> instructional weeks for every section and unit
+  const weekOfDate = dt => { const s = slots.find(x => x.kind === "week" && dt >= x.s && dt <= x.e); return s ? s.week : null; };
+  C.units.forEach(u => {
+    u.sections.forEach(sec => {
+      sec.d = (sec.dates || []).map(md => D(`${T.year || start.getFullYear()}-${md}`));
+      sec.w = [...new Set(sec.d.map(weekOfDate).filter(Boolean))];
+    });
+    u.weeks = [...new Set(u.sections.flatMap(sec => sec.w))].sort((a, b) => a - b);
+    u.allDates = u.sections.flatMap(sec => sec.d).sort((a, b) => a - b);
+  });
+  const slotOfWeek = w => slots.findIndex(s => s.kind === "week" && s.week === w);
+
+  // Which slot is "today"? (-1 = before term, slots.length = after term)
+  function todaySlot(){
+    const qp = parseInt(new URLSearchParams(location.search).get("week"), 10);
+    if (!isNaN(qp)) return Math.max(0, slotOfWeek(qp));
+    if (T.currentWeek) return Math.max(0, slotOfWeek(T.currentWeek));
+    const now = new Date(); now.setHours(0,0,0,0);
+    if (now < start) return -1;
+    const fin = slots.find(s => s.kind === "finals");
+    if (fin && now >= fin.s) return now > fin.e ? slots.length : slots.indexOf(fin);
+    const i = slots.findIndex(s => now >= s.s && now <= s.e);
+    return i >= 0 ? i : slots.length - 1;
+  }
+  const TODAY = todaySlot();
+  let cur = Math.min(Math.max(TODAY, 0), slots.length - 1);          // slot being shown
+
+  // Instructional week in effect for a slot (breaks count as the week before)
+  function effWeek(i){
+    if (TODAY < 0 && i === cur && cur === 0 && !previewing) return 0;
+    const s = slots[i];
+    if (s.kind === "week") return s.week;
+    if (s.kind === "finals") return N + 1;
+    for (let j = i; j >= 0; j--) if (slots[j].kind === "week") return slots[j].week + 0.5;
+    return 0;
+  }
+  let previewing = false;
+
+  function status(u, wk){
+    wk = wk ?? effWeek(cur);
+    const first = Math.min(...u.weeks), lastW = Math.max(...u.weeks);
+    if (wk > lastW) return "done";
+    if (u.weeks.includes(wk)) return "active";
+    if (wk < first) return "upcoming";
+    return "partial";                     // started earlier, resumes in a later week
+  }
+  const label = {done:"✓ Done", active:"● Now", upcoming:"🔒 Upcoming", partial:"◐ Part done"};
+  // [4,5,6,7] -> "4–7"; [11,15] -> "11, 15"
+  const runs = ws => { const r = []; ws.forEach(w => { const l = r[r.length-1]; if (l && w === l[1] + 1) l[1] = w; else r.push([w, w]); }); return r; };
+  const weekList = u => runs(u.weeks).map(([a, b]) => a === b ? `${a}` : `${a}–${b}`).join(", ");
+  const weekText = u => (u.weeks.length > 1 ? "Weeks " : "Week ") + weekList(u);
+  const unitDates = u => u.allDates.length ? range(u.allDates[0], u.allDates[u.allDates.length-1]) : "";
+  const dayFmt = d => d.toLocaleDateString("en-US", {weekday:"short", month:"short", day:"numeric"});
+  function codes(u){
+    const c = u.sections.map(s => s.s.split(" ")[0]);
+    const out = []; let i = 0;
+    while (i < c.length){
+      let j = i;
+      const [ch, k] = c[i].split(".");
+      while (j+1 < c.length && c[j+1].split(".")[0] === ch && +c[j+1].split(".")[1] === +c[j].split(".")[1] + 1 && !isNaN(+k)) j++;
+      out.push(j - i >= 2 ? `${c[i]}–${c[j]}` : c.slice(i, j+1).join(" · "));
+      i = j + 1;
+    }
+    return out.join(" · ");
+  }
+  const slotName = s => s.kind === "week" ? `Week ${s.week}` : s.label;
+
+  document.getElementById("mapTitle").textContent = C.title;
+
+  /* ---------- Nodes (built once, restyled on every week change) ---------- */
+  function nodeHTML(u, st){
+    return `<span class="row"><span class="parent">Wk ${esc(weekList(u))}</span><span class="badge">${label[st]}</span></span>
+      ${u.parentTitle ? `<span class="ptag">${esc(u.parentTitle)} ›</span>` : ""}
+      <span class="title${u.title.length > 14 ? " long" : ""}">${esc(u.title)}</span>
+      <span class="codes">${esc(codes(u))}</span>`;
+  }
+  function ariaFor(u, st){
+    const w = {done:"completed", active:"current unit", upcoming:"upcoming", partial:"partly done, continues later"}[st];
+    return `${u.parentTitle ? u.parentTitle + ": " : ""}${u.title}, ${weekText(u)}, ${w}. Sections ${codes(u)}. Open details.`;
+  }
+  const map = document.getElementById("map"), list = document.getElementById("list");
+  const nodes = {};   // id -> [mapButton, listButton]
+  function makeBtn(u){
+    const b = document.createElement("button");
+    b.type = "button"; b.addEventListener("click", () => openUnit(u.id, b)); return b;
+  }
+  C.units.forEach(u => {
+    const b = makeBtn(u); b.style.left = u.x + "px"; b.style.top = u.y + "px";
+    map.appendChild(b); nodes[u.id] = [b];
+  });
+  [...C.units].sort((a, b) => a.weeks[0] - b.weeks[0]).forEach(u => {
+    const b = makeBtn(u), li = document.createElement("li");
+    li.appendChild(b); list.appendChild(li); nodes[u.id].push(b);
+  });
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.setAttribute("aria-hidden", "true"); map.appendChild(tip);
+
+  /* ---------- Edges ---------- */
+  const svg = document.getElementById("edges");
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const edgeEls = C.edges.map(([a, b]) => {
+    const A = byId[a], B = byId[b];
+    const x1 = A.x + NW/2, y1 = A.y + NH, x2 = B.x + NW/2, y2 = B.y, my = (y1 + y2) / 2;
+    const p = document.createElementNS("http://www.w3.org/2000/svg","path");
+    p.setAttribute("d", `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`);
+    svg.appendChild(p); return [p, A, B];
+  });
+
+  /* ---------- Scale map to fit width ---------- */
+  const outer = document.getElementById("mapOuter");
+  function fit(){
+    const s = Math.min(1, outer.clientWidth / W);
+    map.style.transform = `scale(${s})`;
+    outer.style.height = (H * s) + "px";
+  }
+  new ResizeObserver(fit).observe(outer); fit();
+
+  /* ---------- View toggle ---------- */
+  const bMap = document.getElementById("btnMap"), bList = document.getElementById("btnList");
+  function setView(v){
+    document.body.classList.toggle("list-mode", v === "list");
+    bMap.setAttribute("aria-pressed", v === "map"); bList.setAttribute("aria-pressed", v === "list");
+    if (v === "map") fit();
+  }
+  bMap.onclick = () => setView("map"); bList.onclick = () => setView("list");
+  if (window.innerWidth < 700) setView("list");
+
+  /* ---------- Timeline with draggable week slider ---------- */
+  const tl = document.getElementById("timeline"), M = slots.length;
+  const pos = i => (M > 1 ? i / (M - 1) * 100 : 0);
+  const groupColor = {Foundations:"#8b95a3", Derivatives:"#0C2340", Integrals:"#AE9142", Synthesis:"#1c7340"};
+  let th = `<div class="tl-inner"><div class="track"></div><div class="fill" id="tlFill"></div>`;
+  slots.forEach((s, i) => {
+    th += `<span class="tick ${s.kind}${s.holiday ? " hol" : ""}" style="left:${pos(i)}%" title="${esc(slotName(s))}: ${range(s.s, s.e)}${s.holiday ? " (" + esc(s.holiday) + ")" : ""}">${s.short}</span>`;
+    if (s.exams) th += `<span class="exam" style="left:${pos(i)}%" title="${esc(s.exams.map(examText).join("; "))}">${s.kind === "finals" ? "F" : "M"}</span>`;
+    if (s.kind !== "week") th += `<span class="gap" style="left:calc(${pos(i)}% - ${50/(M-1)}%);width:${100/(M-1)}%"></span>`;
+  });
+  C.units.forEach(u => runs(u.weeks).forEach(([wa, wb]) => {
+    const a = slotOfWeek(wa), b = slotOfWeek(wb);
+    if (a < 0 || b < 0) return;
+    const L = Math.max(0, pos(a) - 50/(M-1)), R = Math.min(100, pos(b) + 50/(M-1));
+    th += `<span class="band" title="${esc(u.title)}" style="left:calc(${L}% + 2px);width:calc(${R - L}% - 4px);background:${groupColor[u.group]||"#888"}"></span>`;
+  }));
+  th += `<div class="pin" id="tlPin"><span class="head" id="tlHead"></span></div>
+    <input type="range" id="weekSlider" min="0" max="${M-1}" step="1" value="${cur}" aria-label="Choose a week to preview"></div>`;
+  tl.innerHTML = th;
+  tl.removeAttribute("aria-hidden");
+  const slider = document.getElementById("weekSlider"), backBtn = document.getElementById("backBtn");
+
+  /* ---------- Render everything for the selected slot ---------- */
+  function render(){
+    const wk = effWeek(cur), s = slots[cur];
+    C.units.forEach(u => {
+      const st = status(u, wk);
+      nodes[u.id].forEach(b => { b.className = "node " + st; b.innerHTML = nodeHTML(u, st); b.setAttribute("aria-label", ariaFor(u, st)); });
+    });
+    edgeEls.forEach(([p, A, B]) => p.setAttribute("class", "edge" + (status(A, wk) !== "upcoming" && status(B, wk) !== "upcoming" ? " lit" : "")));
+    const actives = C.units.filter(u => status(u, wk) === "active");
+    const inSlot = d => d >= s.s && d <= s.e;
+    const act = actives.slice().sort((a, b) => b.allDates.filter(inSlot).length - a.allDates.filter(inSlot).length)[0];
+    tip.hidden = !act;
+    if (act){
+      tip.textContent = (previewing ? "Week " + wk : "This week") + " · click to expand";
+      tip.style.left = (act.x + NW/2) + "px"; tip.style.top = (act.y + NH + 10) + "px";
+    }
+    // timeline
+    document.getElementById("tlFill").style.width = pos(cur) + "%";
+    const pin = document.getElementById("tlPin");
+    pin.style.left = pos(cur) + "%";
+    pin.classList.toggle("preview", previewing);
+    document.getElementById("tlHead").textContent = (TODAY < 0 && !previewing) ? "Starts Aug 24" : s.kind === "week" ? `Week ${s.week}` : s.short;
+    slider.value = cur;
+    slider.setAttribute("aria-valuetext", `${slotName(s)}, ${range(s.s, s.e)}${s.holiday ? ", " + s.holiday : ""}`);
+    backBtn.hidden = !previewing;
+    // summary text
+    const where = document.getElementById("where");
+    const lead = previewing ? `<span class="previewtag">Preview</span> ` : "";
+    const next = C.units.filter(u => status(u, wk) === "upcoming").sort((a,b)=>a.weeks[0]-b.weeks[0])[0];
+    // This week's lectures, e.g. "Mon 3.4 · Wed 3.5 · Fri 3.5, 4.1"
+    const byDay = {};
+    C.units.forEach(u => u.sections.forEach(sec => sec.d.filter(inSlot).forEach(d => { (byDay[+d] = byDay[+d] || []).push(sec.s.split(" ")[0]); })));
+    const lect = Object.keys(byDay).sort().map(k => `${new Date(+k).toLocaleDateString("en-US", {weekday:"short"})} ${[...new Set(byDay[k])].join(", ")}`).join(" · ");
+    const lectTxt = lect ? `<br><span class="lect">Lectures: ${esc(lect)}</span>` : "";
+    const unitName = u => `${u.parentTitle ? esc(u.parentTitle)+" › " : ""}<strong>${esc(u.title)}</strong>`;
+    const nextTxt = next ? ` <span class="muted">Next: ${next.parentTitle ? esc(next.parentTitle)+" › " : ""}${esc(next.title)} (${weekText(next)}, ${unitDates(next)}).</span>` : "";
+    const hol = (s.holiday ? ` <span class="holtag">${esc(s.holiday)}</span>` : "") +
+      (s.exams ? s.exams.map(x => ` <span class="examtag">${esc(examText(x))}</span>`).join("") : "");
+    if (TODAY < 0 && !previewing) where.innerHTML = `Classes begin <strong>Mon, ${fmt(start)}</strong>. First up: <strong>${esc(C.units[0].title)}</strong>.`;
+    else if (TODAY >= slots.length && !previewing) where.innerHTML = `The term is complete. Use the map to review.`;
+    else if (s.kind === "break") where.innerHTML = `${lead}<strong>${esc(s.label)}</strong> (${range(s.s, s.e)}). No classes.${nextTxt}`;
+    else if (s.kind === "finals") where.innerHTML = `${lead}<strong>${esc(s.label)}</strong> (${range(s.s, s.e)}).${hol} Every unit is fair game: pick any unit to practice.`;
+    else if (act) where.innerHTML = `${lead}<strong>Week ${s.week} of ${N}</strong> (${range(s.s, s.e)}): ${[act, ...actives.filter(u => u !== act)].map(unitName).join(" and ")}.${hol} ${esc(act.why)}${nextTxt}${lectTxt}`;
+    else where.innerHTML = `${lead}<strong>Week ${s.week} of ${N}</strong> (${range(s.s, s.e)}): review week.${hol} Pick any completed unit to practice.${lectTxt}`;
+    // Subtitle follows the week shown on the map and timeline
+    const sub = (TODAY < 0 && !previewing) ? `Classes begin Mon, ${fmt(start)}. `
+      : (TODAY >= slots.length && !previewing) ? "Term complete. "
+      : `${previewing ? "Previewing " : ""}${s.kind === "week" ? `Week ${s.week} of ${N}` : s.label} (${range(s.s, s.e)}). `;
+    document.getElementById("subTitle").textContent = sub + "Select any unit to see its sections, practice questions, and links.";
+  }
+  slider.addEventListener("input", () => { cur = +slider.value; previewing = cur !== Math.min(Math.max(TODAY, 0), M - 1) || TODAY < 0 || TODAY >= M; render(); });
+  backBtn.addEventListener("click", () => { cur = Math.min(Math.max(TODAY, 0), M - 1); previewing = false; render(); slider.focus(); });
+  render();
+
+  /* ---------- Dialog ---------- */
+  const dlg = document.getElementById("dlg"), body = document.getElementById("dlgBody");
+  let opener = null;
+  document.getElementById("dlgClose").onclick = () => dlg.close();
+  dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener("close", () => { if (opener) opener.focus(); });
+
+  const scaleWords = ["", "Not yet", "Shaky", "Getting there", "Mostly", "Solid"];
+  function feedbackFor(k, u){
+    const has = key => u.links && u.links[key];
+    if (k <= 2) return `That's useful to know. Start with the review materials${has("review") ? "" : " (link coming soon)"}, then retry the practice questions above without looking.`;
+    if (k === 3) return `Halfway there. Check the common pitfalls below, then try the practice quiz to find the gaps.`;
+    return `Good. Test that confidence on the practice quiz. If a result surprises you, come back here.`;
+  }
+
+  function openUnit(id, btn){
+    const u = byId[id], st = status(u); opener = btn;
+    document.getElementById("dlgTitle").textContent = (u.parentTitle ? u.parentTitle + " › " : "") + u.title;
+    document.getElementById("dlgMeta").textContent = `${weekText(u)} (${unitDates(u)}) · ${label[st]}`;
+    let h = `<h3>Why it matters</h3><p style="margin:0">${esc(u.why)}</p>
+      <h3>Sections</h3><ul>${u.sections.map(s => `<li>${esc(s.s)} <span class="muted">(${s.d.map(dayFmt).join("; ")})</span></li>`).join("")}</ul>`;
+    if (st === "partial"){
+      const nx = u.allDates.find(d => d > slots[cur].e);
+      h += `<div class="locked-note">◐ Part of this unit is done. It picks up again on ${nx ? dayFmt(nx) : "a later date"}.</div>`;
+    }
+    if (st === "upcoming"){
+      h += `<div class="locked-note">🔒 We reach this unit in ${weekText(u)} (${unitDates(u)}). Practice questions and the confidence check open then.</div>`;
+    } else {
+      h += `<h3>Self-check: retrieval practice</h3><p class="muted" style="margin:0 0 4px;font-size:.9rem">Answer from memory first. Then compare.</p>`;
+      u.retrieval.forEach((r, i) => {
+        h += `<div class="rq"><p id="q-${id}-${i}">${i+1}. ${esc(r.q)}</p>
+          <label for="t-${id}-${i}">Your answer (not saved)</label>
+          <textarea id="t-${id}-${i}" aria-describedby="q-${id}-${i}"></textarea>
+          <button class="btn" type="button" aria-expanded="false" aria-controls="a-${id}-${i}" data-a="a-${id}-${i}">Show answer</button>
+          <div class="answer" id="a-${id}-${i}" hidden>${esc(r.a)}</div></div>`;
+      });
+      h += `<h3>Confidence check</h3><fieldset class="scale" id="scale-${id}"><legend>${esc(u.confidence)}</legend>`;
+      for (let k = 1; k <= 5; k++){
+        h += `<input type="radio" name="conf-${id}" id="c-${id}-${k}" value="${k}" ${ratings[id] && ratings[id].n === k ? "checked" : ""}>
+          <label for="c-${id}-${k}">${k}<small>${scaleWords[k]}</small></label>`;
+      }
+      h += `</fieldset><p class="feedback" id="fb-${id}" role="status" aria-live="polite">${ratings[id] ? esc(feedbackFor(ratings[id].n, u)) : ""}</p>`;
+    }
+    h += `<h3 id="pit-${id}">Common pitfalls</h3><ul>${u.pitfalls.map(p => `<li>${esc(p)}</li>`).join("")}</ul>
+      <h3>Links</h3><div class="links">`;
+    [["review","Review materials"],["quiz","Practice quiz"],["pitfalls","More on pitfalls"]].forEach(([k, t]) => {
+      h += u.links && u.links[k] ? `<a href="${esc(u.links[k])}" target="_top">${t}</a>` : `<span>${t}: coming soon</span>`;
+    });
+    h += `</div>`;
+    body.innerHTML = h;
+
+    body.querySelectorAll("button[data-a]").forEach(b => b.onclick = () => {
+      const a = document.getElementById(b.dataset.a), show = a.hidden;
+      a.hidden = !show; b.setAttribute("aria-expanded", show); b.textContent = show ? "Hide answer" : "Show answer";
+    });
+    body.querySelectorAll(`input[name="conf-${id}"]`).forEach(r => r.onchange = () => {
+      const k = +r.value; ratings[id] = {n: k, t: new Date()};
+      document.getElementById("fb-" + id).textContent = feedbackFor(k, u);
+      renderCheckins();
+    });
+    dlg.showModal();
+    document.getElementById("dlgClose").focus();
+  }
+
+  /* ---------- Check-ins ---------- */
+  const ci = document.getElementById("checkins"), copyBtn = document.getElementById("copyBtn");
+  function checkinText(){
+    return C.units.filter(u => ratings[u.id]).map(u =>
+      `${u.parentTitle ? u.parentTitle + " › " : ""}${u.title}: ${ratings[u.id].n}/5 (${scaleWords[ratings[u.id].n]}) — ${u.confidence}`);
+  }
+  function renderCheckins(){
+    const lines = checkinText();
+    ci.innerHTML = lines.length ? lines.map(l => `<li>${esc(l)}</li>`).join("") : `<li class="muted">No ratings yet.</li>`;
+    copyBtn.disabled = !lines.length;
+  }
+  copyBtn.onclick = async () => {
+    const s = slots[Math.min(Math.max(TODAY, 0), M - 1)];
+    const txt = `${C.course} check-ins (${slotName(s)})\n` + checkinText().join("\n");
+    const msg = document.getElementById("copyMsg");
+    try { await navigator.clipboard.writeText(txt); msg.textContent = "Copied."; }
+    catch(e){ msg.textContent = "Copy blocked by the browser. Select the list above and copy it instead."; }
+  };
+})();
+</script>
+</body>
+</html>
